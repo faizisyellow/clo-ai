@@ -1,59 +1,54 @@
-import { Container } from "@chakra-ui/react";
+import React, { FC, useState, useRef } from "react";
+import {
+  Box,
+  Button,
+  Container,
+  Flex,
+  Heading,
+  Icon,
+  Input,
+  Span,
+} from "@chakra-ui/react";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import React, { FC, useEffect, useState } from "react";
+import Message from "../message";
+import { ColorModeButton, useColorMode } from "../ui/color-mode";
+import { FaArrowUp } from "react-icons/fa";
+import { GoDotFill } from "react-icons/go";
+import { RiResetLeftFill } from "react-icons/ri";
 
-type Message = {
+export interface Message {
   sender: "user" | "model";
   text: string;
-};
+}
 
 interface ChatBoxProps {}
 
-const ChatBox: FC<ChatBoxProps> = ({}) => {
-  const [messages, setMessages] = useState<Message[]>([
-    { sender: "model", text: "Hello! How can I assist you today?" },
-  ]);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [loadingDots, setLoadingDots] = useState<string>("");
+const ChatBox: FC<ChatBoxProps> = () => {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const { colorMode } = useColorMode();
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // Effect to cycle the dots animation
-  useEffect(() => {
-    if (isLoading) {
-      const interval = setInterval(() => {
-        setLoadingDots((prev) => (prev.length < 3 ? prev + "." : ""));
-      }, 500);
-      return () => clearInterval(interval);
-    } else {
-      setLoadingDots("");
-    }
-  }, [isLoading]);
+  const emptyMessage = messages.length === 0;
 
-  const formatHistoryForPrompt = (history: Message[]): string => {
-    return history
-      .map((msg) =>
-        msg.sender === "user" ? `User: ${msg.text}` : `Model: ${msg.text}`
-      )
-      .join("\n");
-  };
+  const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_BASE_URL!);
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
   const sendMessage = async (userInput: string) => {
     setMessages((prev) => [...prev, { sender: "user", text: userInput }]);
     setIsLoading(true);
 
     try {
-      const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_BASE_URL!);
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
-      // Format the history
-      const formattedHistory = formatHistoryForPrompt(messages);
-
-      // Add user input to the prompt
-      const prompt = `${formattedHistory}\nUser: ${userInput}\nModel:`;
-
-      const chat = model.startChat({ history: [] });
-      const result = await chat.sendMessageStream(prompt);
+      const chat = model.startChat({
+        history: messages.map((msg) => ({
+          role: msg.sender,
+          parts: [{ text: msg.text }],
+        })),
+      });
 
       let modelResponse = "";
+      const result = await chat.sendMessageStream(userInput);
+
       for await (const chunk of result.stream) {
         modelResponse += chunk.text();
       }
@@ -63,79 +58,109 @@ const ChatBox: FC<ChatBoxProps> = ({}) => {
         { sender: "model", text: modelResponse },
       ]);
     } catch (error) {
-      console.error("Error:", error);
+      console.error("Error while sending message:", error);
       setMessages((prev) => [
         ...prev,
-        { sender: "model", text: "Error: Unable to respond. Try again later" },
+        {
+          sender: "model",
+          text: "Error: Unable to respond. Please try again later.",
+        },
       ]);
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleSubmit = () => {
+    if (inputRef.current?.value.trim()) {
+      sendMessage(inputRef.current.value.trim());
+      inputRef.current.value = "";
+    }
+  };
+
+  const handleResetMessage = () => {
+    setMessages([]);
+  };
+
   return (
     <>
-      <div style={{ padding: "10px", overflowY: "auto" }}>
-        {messages.map((message, index) => (
-          <div
-            key={index}
-            style={{
-              display: "flex",
-              justifyContent:
-                message.sender === "user" ? "flex-end" : "flex-start",
-              margin: "5px 0",
-            }}
-          >
-            <div
-              style={{
-                backgroundColor:
-                  message.sender === "user" ? "#DCF8C6" : "#F1F1F1",
-                color: "#000",
-                padding: "10px",
-                borderRadius: "10px",
-                maxWidth: "60%",
-              }}
-            >
-              {message.text}
-            </div>
-          </div>
-        ))}
+      <Box display="flex" justifyContent="right" pb="2rem">
+        <ColorModeButton size="xl" position={"fixed"} zIndex={"max"} />
+      </Box>
 
-        {isLoading && (
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "flex-start",
-              margin: "5px 0",
-            }}
-          >
-            <div
-              style={{
-                backgroundColor: "#F1F1F1",
-                color: "#000",
-                padding: "10px",
-                borderRadius: "10px",
-                maxWidth: "60%",
-              }}
+      <Container>
+        <Box padding="10px" overflowY="auto">
+          {emptyMessage ? (
+            <Box textAlign={"center"}>
+              <Heading size={"4xl"} fontWeight={"bold"} my={"5rem"}>
+                Apa yang saya bisa bantu?
+              </Heading>
+            </Box>
+          ) : (
+            messages.map((message, index) => (
+              <Message message={message} key={index} />
+            ))
+          )}
+
+          {isLoading && (
+            <Icon
+              color={colorMode === "dark" ? "white" : "black"}
+              fontSize={"2xl"}
             >
-              {`Thinking${loadingDots}`}
-            </div>
-          </div>
-        )}
-      </div>
-      <div>
-        <input
-          type="text"
-          placeholder="Type your message"
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && e.currentTarget.value.trim()) {
-              sendMessage(e.currentTarget.value.trim());
-              e.currentTarget.value = "";
-            }
-          }}
-          style={{ width: "80%", padding: "10px", margin: "10px 0" }}
-        />
-      </div>
+              <GoDotFill />
+            </Icon>
+          )}
+        </Box>
+        <Flex position={"relative"} alignItems={"center"} gapX={4}>
+          <Button
+            position={"absolute"}
+            right={emptyMessage ? "6" : "16"}
+            top={"6"}
+            color={colorMode === "dark" ? "black" : "white"}
+            backgroundColor={colorMode === "dark" ? "white" : "black"}
+            rounded={"full"}
+            fontSize={"3xl"}
+            p={"5px"}
+            size={"sm"}
+            zIndex={"max"}
+            onClick={handleSubmit}
+          >
+            {isLoading ? <GoDotFill /> : <FaArrowUp />}
+          </Button>
+          <Input
+            ref={inputRef}
+            overscrollY={"revert"}
+            type="text"
+            placeholder="Ketik pesan anda"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && e.currentTarget.value.trim()) {
+                sendMessage(e.currentTarget.value.trim());
+                e.currentTarget.value = "";
+              }
+            }}
+            width="100%"
+            padding="10px"
+            py={"2rem"}
+            margin="10px 0"
+            rounded={"3xl"}
+            shadow={"sm"}
+          />
+          {!emptyMessage && (
+            <Button
+              color={colorMode === "dark" ? "black" : "white"}
+              backgroundColor={colorMode === "dark" ? "white" : "black"}
+              rounded={"full"}
+              fontSize={"3xl"}
+              p={"5px"}
+              size={"sm"}
+              zIndex={"max"}
+              onClick={handleResetMessage}
+            >
+              <RiResetLeftFill />
+            </Button>
+          )}
+        </Flex>
+      </Container>
     </>
   );
 };
