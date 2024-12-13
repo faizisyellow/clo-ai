@@ -7,7 +7,6 @@ import {
   Heading,
   Icon,
   Input,
-  Span,
 } from "@chakra-ui/react";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import Message from "../message";
@@ -21,6 +20,7 @@ export interface Message {
   text: string;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface ChatBoxProps {}
 
 const ChatBox: FC<ChatBoxProps> = () => {

@@ -1,7 +1,6 @@
 import { Container, Heading } from "@chakra-ui/react";
 import Image from "next/image";
 import { FC, ReactNode } from "react";
-import { Provider } from "../ui/provider";
 
 interface MainProps {
   render: () => ReactNode;
