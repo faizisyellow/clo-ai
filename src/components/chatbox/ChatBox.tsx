@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-empty-object-type */
 import React, { FC, useState, useRef } from "react";
 import {
   Box,
@@ -20,7 +21,7 @@ export interface Message {
   text: string;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+
 interface ChatBoxProps {}
 
 const ChatBox: FC<ChatBoxProps> = () => {
