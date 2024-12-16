@@ -4,7 +4,7 @@ import { ColorModeProvider } from "@/components/ui/color-mode";
 import { Provider } from "@/components/ui/provider";
 
 export const metadata: Metadata = {
-  title: "CLO AI",
+  title: "SMECHA AI",
   description: "A web generative text ai",
 };
 

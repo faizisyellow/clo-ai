@@ -21,7 +21,6 @@ export interface Message {
   text: string;
 }
 
-
 interface ChatBoxProps {}
 
 const ChatBox: FC<ChatBoxProps> = () => {
